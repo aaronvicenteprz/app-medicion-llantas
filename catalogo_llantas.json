@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "marca": "Continental",
+    "modelo": "SC20",
+    "tipo": "Cushion",
+    "medida": "21x7x15",
+    "diametro_nuevo_mm": 533.4,
+    "diametro_limite_mm": 508.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 2,
+    "marca": "Bridgestone",
+    "modelo": "CBH",
+    "tipo": "Cushion",
+    "medida": "16x6x10.5",
+    "diametro_nuevo_mm": 406.4,
+    "diametro_limite_mm": 381.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 3,
+    "marca": "Trelleborg",
+    "modelo": "T-9000",
+    "tipo": "Neumatica",
+    "medida": "6.00-9",
+    "diametro_nuevo_mm": 600.0,
+    "diametro_limite_mm": 570.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 4,
+    "marca": "Camso",
+    "modelo": "Solideal SR",
+    "tipo": "Resiliente",
+    "medida": "28x9-15",
+    "diametro_nuevo_mm": 711.2,
+    "diametro_limite_mm": 680.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  }
+]
