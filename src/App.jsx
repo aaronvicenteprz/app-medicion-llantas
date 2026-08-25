@@ -224,7 +224,10 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
     body: filas,
     styles: { fontSize: 9, cellPadding: 3, valign: 'middle' },
     headStyles: { fillColor: MARCA_RGB.navy, textColor: 255 },
-    columnStyles: { 0: { cellWidth: 12 }, 4: { cellWidth: 20 } },
+    columnStyles: {
+      0: { cellWidth: 12 },
+      4: { cellWidth: 22, cellPadding: { top: 3, right: 3, bottom: 3, left: 9 } },
+    },
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 4) {
         const pos = POSICIONES[data.row.index]
@@ -245,7 +248,7 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
         const pos = POSICIONES[data.row.index]
         const color = resultados[pos.id].semaforo.color
         doc.setFillColor(...COLOR_RGB_PDF[color])
-        doc.circle(data.cell.x + 4, data.cell.y + data.cell.height / 2, 2, 'F')
+        doc.circle(data.cell.x + 4.5, data.cell.y + data.cell.height / 2, 1.8, 'F')
       }
     },
   })
