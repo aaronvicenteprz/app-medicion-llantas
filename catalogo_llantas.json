@@ -38,5 +38,175 @@
     "diametro_nuevo_mm": 711.2,
     "diametro_limite_mm": 680.0,
     "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 5,
+    "marca": "Industrial",
+    "modelo": "4.00-8 (Rin 8)",
+    "tipo": "Neumática / Sólida",
+    "medida": "4.00-8",
+    "diametro_nuevo_mm": 415.0,
+    "diametro_limite_mm": 385.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 6,
+    "marca": "Industrial",
+    "modelo": "5.00-8 (Rin 8)",
+    "tipo": "Neumática / Sólida",
+    "medida": "5.00-8",
+    "diametro_nuevo_mm": 465.0,
+    "diametro_limite_mm": 430.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 7,
+    "marca": "Industrial",
+    "modelo": "18x7-8 (Rin 8)",
+    "tipo": "Neumática / Sólida",
+    "medida": "18x7-8",
+    "diametro_nuevo_mm": 457.0,
+    "diametro_limite_mm": 420.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 8,
+    "marca": "Industrial",
+    "modelo": "6.00-9 (Rin 9)",
+    "tipo": "Neumática / Sólida",
+    "medida": "6.00-9",
+    "diametro_nuevo_mm": 540.0,
+    "diametro_limite_mm": 495.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 9,
+    "marca": "Industrial",
+    "modelo": "21x8-9 (Rin 9)",
+    "tipo": "Neumática / Sólida",
+    "medida": "21x8-9",
+    "diametro_nuevo_mm": 533.0,
+    "diametro_limite_mm": 490.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 10,
+    "marca": "Industrial",
+    "modelo": "6.50-10 (Rin 10)",
+    "tipo": "Neumática / Sólida",
+    "medida": "6.50-10",
+    "diametro_nuevo_mm": 580.0,
+    "diametro_limite_mm": 535.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 11,
+    "marca": "Industrial",
+    "modelo": "200/50-10 (Rin 10)",
+    "tipo": "Neumática / Sólida",
+    "medida": "200/50-10",
+    "diametro_nuevo_mm": 500.0,
+    "diametro_limite_mm": 460.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 12,
+    "marca": "Industrial",
+    "modelo": "7.00-12 (Rin 12)",
+    "tipo": "Neumática / Sólida",
+    "medida": "7.00-12",
+    "diametro_nuevo_mm": 680.0,
+    "diametro_limite_mm": 625.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 13,
+    "marca": "Industrial",
+    "modelo": "27x10-12 (Rin 12)",
+    "tipo": "Neumática / Sólida",
+    "medida": "27x10-12",
+    "diametro_nuevo_mm": 686.0,
+    "diametro_limite_mm": 630.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 14,
+    "marca": "Industrial",
+    "modelo": "7.00-15 (Rin 15)",
+    "tipo": "Neumática / Sólida",
+    "medida": "7.00-15",
+    "diametro_nuevo_mm": 780.0,
+    "diametro_limite_mm": 715.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 15,
+    "marca": "Industrial",
+    "modelo": "7.50-15 (Rin 15)",
+    "tipo": "Neumática / Sólida",
+    "medida": "7.50-15",
+    "diametro_nuevo_mm": 800.0,
+    "diametro_limite_mm": 735.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 16,
+    "marca": "Industrial",
+    "modelo": "8.15-15 (Rin 15)",
+    "tipo": "Neumática / Sólida",
+    "medida": "8.15-15",
+    "diametro_nuevo_mm": 812.0,
+    "diametro_limite_mm": 745.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 17,
+    "marca": "Industrial",
+    "modelo": "8.25-15 (Rin 15)",
+    "tipo": "Neumática / Sólida",
+    "medida": "8.25-15",
+    "diametro_nuevo_mm": 825.0,
+    "diametro_limite_mm": 755.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 18,
+    "marca": "Industrial",
+    "modelo": "28x9-15 (Rin 15)",
+    "tipo": "Neumática / Sólida",
+    "medida": "28x9-15",
+    "diametro_nuevo_mm": 711.0,
+    "diametro_limite_mm": 655.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 19,
+    "marca": "Industrial",
+    "modelo": "Cushion 16x5x10½",
+    "tipo": "Sólida Press-On",
+    "medida": "16x5x10.5",
+    "diametro_nuevo_mm": 406.0,
+    "diametro_limite_mm": 375.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 20,
+    "marca": "Industrial",
+    "modelo": "Cushion 16x6x10½",
+    "tipo": "Sólida Press-On",
+    "medida": "16x6x10.5",
+    "diametro_nuevo_mm": 406.0,
+    "diametro_limite_mm": 375.0,
+    "tolerancia_desbalance_eje_mm": 6.35
+  },
+  {
+    "id": 21,
+    "marca": "Industrial",
+    "modelo": "Cushion 18x6x12⅛",
+    "tipo": "Sólida Press-On",
+    "medida": "18x6x12.125",
+    "diametro_nuevo_mm": 457.0,
+    "diametro_limite_mm": 420.0,
+    "tolerancia_desbalance_eje_mm": 6.35
   }
 ]
