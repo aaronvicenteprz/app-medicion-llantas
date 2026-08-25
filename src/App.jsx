@@ -53,6 +53,46 @@ const COLOR_RGB_PDF = {
   gray: [180, 180, 180],
 }
 
+const MARCA_RGB = {
+  navy: [27, 35, 64],
+  blue: [45, 78, 130],
+  teal: [78, 156, 147],
+  gris: [100, 116, 139],
+}
+
+const LOGO_URL = `${import.meta.env.BASE_URL}logo_dmi.png`
+const LOGO_RATIO = 800 / 300
+
+let logoBase64Promise = null
+function obtenerLogoBase64() {
+  if (!logoBase64Promise) {
+    logoBase64Promise = new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        // El PNG tiene canal alfa: se compone sobre blanco y se exporta como
+        // JPEG para evitar que jsPDF incruste una máscara de transparencia
+        // sin comprimir (infla el PDF a casi 1 MB por un logotipo de 23 KB).
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(img, 0, 0)
+        resolve(canvas.toDataURL('image/jpeg', 0.92))
+      }
+      img.onerror = reject
+      img.src = LOGO_URL
+    })
+  }
+  return logoBase64Promise
+}
+
+function formatSucursal(sucursal) {
+  const valor = sucursal?.trim()
+  return valor ? `DMI Sucursal ${valor}` : '—'
+}
+
 function formatFecha(fecha) {
   return fecha.toLocaleString('es', {
     day: '2-digit',
@@ -65,10 +105,11 @@ function formatFecha(fecha) {
 
 function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
   const lineas = []
+  lineas.push('🏢 *DMI*')
   lineas.push('*Reporte de Inspección de Llantas*')
   lineas.push(`Fecha: ${formatFecha(new Date())}`)
   lineas.push(`Serie del equipo: ${datosEquipo.serie || '—'}`)
-  lineas.push(`Sucursal: ${datosEquipo.sucursal || '—'}`)
+  lineas.push(`Sucursal: ${formatSucursal(datosEquipo.sucursal)}`)
   lineas.push(`Técnico responsable: ${datosEquipo.tecnico || '—'}`)
   lineas.push('')
 
@@ -125,24 +166,42 @@ async function copiarAlPortapapeles(texto) {
   }
 }
 
-function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
+async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
   const doc = new jsPDF()
   const fecha = formatFecha(new Date())
+  const anchoPagina = doc.internal.pageSize.getWidth()
+  const margenDerecho = anchoPagina - 14
+
+  const logo = await obtenerLogoBase64().catch(() => null)
+  const textoX = logo ? 52 : 14
+
+  if (logo) {
+    const logoAncho = 32
+    const logoAlto = logoAncho / LOGO_RATIO
+    doc.addImage(logo, 'JPEG', 14, 8, logoAncho, logoAlto)
+  }
 
   doc.setFontSize(16)
-  doc.setTextColor(30, 41, 59)
-  doc.text('Ficha Técnica de Inspección de Llantas', 14, 18)
+  doc.setTextColor(...MARCA_RGB.navy)
+  doc.text('Ficha Técnica de Inspección de Llantas', textoX, 15)
 
   doc.setFontSize(10)
-  doc.setTextColor(100, 116, 139)
-  doc.text('Montacargas · vida útil por posición', 14, 24)
-  doc.text(`Fecha de generación: ${fecha}`, 14, 30)
+  doc.setTextColor(...MARCA_RGB.blue)
+  doc.text('Montacargas · vida útil por posición', textoX, 21)
+  doc.text(`Fecha de generación: ${fecha}`, textoX, 26)
+
+  doc.setDrawColor(...MARCA_RGB.navy)
+  doc.setLineWidth(0.6)
+  doc.line(14, 30, margenDerecho, 30)
+  doc.setDrawColor(...MARCA_RGB.teal)
+  doc.setLineWidth(1.2)
+  doc.line(14, 31.2, 44, 31.2)
 
   doc.setFontSize(10)
-  doc.setTextColor(30, 41, 59)
-  doc.text(`Serie del equipo: ${datosEquipo.serie || '—'}`, 14, 38)
-  doc.text(`Sucursal: ${datosEquipo.sucursal || '—'}`, 14, 44)
-  doc.text(`Técnico responsable: ${datosEquipo.tecnico || '—'}`, 14, 50)
+  doc.setTextColor(...MARCA_RGB.navy)
+  doc.text(`Serie del equipo: ${datosEquipo.serie || '—'}`, 14, 39)
+  doc.text(`Sucursal: ${formatSucursal(datosEquipo.sucursal)}`, 14, 45)
+  doc.text(`Técnico responsable: ${datosEquipo.tecnico || '—'}`, 14, 51)
 
   const filas = POSICIONES.map((pos) => {
     const r = resultados[pos.id]
@@ -160,11 +219,11 @@ function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
   })
 
   autoTable(doc, {
-    startY: 56,
+    startY: 58,
     head: [['Pos.', 'Modelo', 'Diám. medido', 'Vida útil', 'Estado', 'Recomendación']],
     body: filas,
     styles: { fontSize: 9, cellPadding: 3, valign: 'middle' },
-    headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+    headStyles: { fillColor: MARCA_RGB.navy, textColor: 255 },
     columnStyles: { 0: { cellWidth: 12 }, 4: { cellWidth: 20 } },
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 4) {
@@ -209,14 +268,17 @@ function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
     }
   } else {
     doc.setFontSize(9)
-    doc.setTextColor(100, 116, 139)
+    doc.setTextColor(...MARCA_RGB.gris)
     doc.text('Sin alertas de desbalance entre ejes.', 14, y)
     y += 5
   }
 
+  doc.setDrawColor(...MARCA_RGB.navy)
+  doc.setLineWidth(0.3)
+  doc.line(14, 281, margenDerecho, 281)
   doc.setFontSize(8)
-  doc.setTextColor(150, 150, 150)
-  doc.text('Generado con App Medición de Llantas', 14, 287)
+  doc.setTextColor(...MARCA_RGB.gris)
+  doc.text('DMI · Generado con App Medición de Llantas', 14, 287)
 
   const nombreArchivo = `ficha-tecnica-llantas-${new Date().toISOString().slice(0, 10)}.pdf`
   doc.save(nombreArchivo)
@@ -248,6 +310,7 @@ export default function App() {
         setEstado('listo')
       })
       .catch(() => setEstado('error'))
+    obtenerLogoBase64().catch(() => {})
   }, [])
 
   const actualizarMedicion = (posId, campo, valor) => {
@@ -323,9 +386,14 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-gray-100 pb-10">
-      <header className="sticky top-0 z-10 bg-slate-800 text-white px-4 py-4 shadow-md">
-        <h1 className="text-lg font-bold leading-tight">Medición de Llantas</h1>
-        <p className="text-slate-300 text-sm">Montacargas · vida útil por posición</p>
+      <header className="sticky top-0 z-10 bg-dmi-navy text-white px-4 py-4 shadow-md">
+        <div className="flex items-center gap-3">
+          <img src={LOGO_URL} alt="DMI" className="h-8 w-auto shrink-0" />
+          <div className="min-w-0 border-l border-white/20 pl-3">
+            <h1 className="text-lg font-bold leading-tight">Medición de Llantas</h1>
+            <p className="text-slate-300 text-sm">Montacargas · vida útil por posición</p>
+          </div>
+        </div>
       </header>
 
       {alertasEje.length > 0 && (
@@ -384,8 +452,8 @@ function DatosEquipo({ datos, onChange, completos }) {
           placeholder={placeholder}
           value={datos[name]}
           onChange={(e) => onChange(name, e.target.value)}
-          className={`mt-1 w-full rounded-xl border bg-white px-3 py-3 text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 ${
-            vacio ? 'border-red-300' : 'border-slate-300 focus:border-slate-500'
+          className={`mt-1 w-full rounded-xl border bg-white px-3 py-3 text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-dmi-blue ${
+            vacio ? 'border-red-300' : 'border-slate-300 focus:border-dmi-blue'
           }`}
         />
       </label>
@@ -393,8 +461,8 @@ function DatosEquipo({ datos, onChange, completos }) {
   }
 
   return (
-    <section className="rounded-2xl border-2 border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-4 py-3 bg-slate-800">
+    <section className="rounded-2xl border-2 border-dmi-blue/20 bg-white shadow-sm overflow-hidden">
+      <div className="px-4 py-3 bg-dmi-navy">
         <h2 className="text-white font-semibold">Datos de Trazabilidad</h2>
       </div>
       <div className="px-4 py-4 space-y-3">
@@ -413,6 +481,7 @@ function DatosEquipo({ datos, onChange, completos }) {
 
 function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resultados, alertasEje }) {
   const [mensaje, setMensaje] = useState(null)
+  const [generandoPDF, setGenerandoPDF] = useState(false)
   const timeoutRef = useRef(null)
 
   const mostrarMensaje = (texto) => {
@@ -427,11 +496,15 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
     mostrarMensaje(ok ? '✅ Reporte copiado al portapapeles' : '⚠️ No se pudo copiar automáticamente')
   }
 
-  const handleDescargarPDF = () => {
+  const handleDescargarPDF = async () => {
+    if (generandoPDF) return
+    setGenerandoPDF(true)
     try {
-      generarPDF(datosEquipo, mediciones, resultados, alertasEje)
+      await generarPDF(datosEquipo, mediciones, resultados, alertasEje)
     } catch {
       mostrarMensaje('⚠️ No se pudo generar el PDF')
+    } finally {
+      setGenerandoPDF(false)
     }
   }
 
@@ -439,8 +512,8 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
   const puedeGenerar = hayDatos && datosEquipoCompletos
 
   return (
-    <section className="rounded-2xl border-2 border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-4 py-3 bg-slate-800">
+    <section className="rounded-2xl border-2 border-dmi-blue/20 bg-white shadow-sm overflow-hidden">
+      <div className="px-4 py-3 bg-dmi-navy">
         <h2 className="text-white font-semibold">Resumen de Inspección</h2>
       </div>
 
@@ -482,17 +555,17 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
           type="button"
           onClick={handleCopiar}
           disabled={!puedeGenerar}
-          className="w-full rounded-xl bg-green-600 disabled:bg-slate-300 disabled:cursor-not-allowed active:bg-green-700 text-white font-semibold py-3 text-sm shadow-sm transition-colors"
+          className="w-full rounded-xl bg-dmi-teal disabled:bg-slate-300 disabled:cursor-not-allowed active:bg-dmi-teal-dark text-white font-semibold py-3 text-sm shadow-sm transition-colors"
         >
           📋 Copiar Reporte para WhatsApp / Texto
         </button>
         <button
           type="button"
           onClick={handleDescargarPDF}
-          disabled={!puedeGenerar}
-          className="w-full rounded-xl bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed active:bg-slate-900 text-white font-semibold py-3 text-sm shadow-sm transition-colors"
+          disabled={!puedeGenerar || generandoPDF}
+          className="w-full rounded-xl bg-dmi-navy disabled:bg-slate-300 disabled:cursor-not-allowed active:bg-dmi-navy-dark text-white font-semibold py-3 text-sm shadow-sm transition-colors"
         >
-          ⬇️ Descargar Ficha Técnica PDF
+          {generandoPDF ? 'Generando…' : '⬇️ Descargar Ficha Técnica PDF'}
         </button>
       </div>
     </section>
@@ -506,7 +579,7 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
     <section className={`rounded-2xl border-2 ${estilo.border} ${estilo.bgSoft} shadow-sm overflow-hidden`}>
       <div className="flex items-center justify-between px-4 py-3 bg-white/60">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-800 text-white font-bold text-base">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-dmi-navy text-white font-bold text-base">
             {posicion.label}
           </span>
           <div>
@@ -524,7 +597,7 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
             value={medicion.modeloId}
             onChange={(e) => onChange('modeloId', e.target.value)}
             style={{ touchAction: 'manipulation' }}
-            className="mt-1 w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="mt-1 w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-800 focus:border-dmi-blue focus:outline-none focus:ring-2 focus:ring-dmi-blue"
           >
             <option value="">Seleccionar modelo…</option>
             {catalogo.map((c) => (
@@ -544,7 +617,7 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
             placeholder="Ej. 495.5"
             value={medicion.diametroMedido}
             onChange={(e) => onChange('diametroMedido', e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-800 focus:border-dmi-blue focus:outline-none focus:ring-2 focus:ring-dmi-blue"
           />
         </label>
 

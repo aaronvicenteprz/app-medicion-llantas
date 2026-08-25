@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@theme {
+  --color-dmi-navy: #1b2340;
+  --color-dmi-navy-dark: #10142a;
+  --color-dmi-blue: #2d4e82;
+  --color-dmi-teal: #4e9c93;
+  --color-dmi-teal-dark: #3d7f77;
+}
+
 select,
 button,
 input,
