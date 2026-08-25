@@ -63,19 +63,25 @@ function formatFecha(fecha) {
   })
 }
 
-function generarTextoReporte(mediciones, resultados, alertasEje) {
+function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
   const lineas = []
   lineas.push('*Reporte de Inspección de Llantas*')
   lineas.push(`Fecha: ${formatFecha(new Date())}`)
+  lineas.push(`Serie del equipo: ${datosEquipo.serie || '—'}`)
+  lineas.push(`Sucursal: ${datosEquipo.sucursal || '—'}`)
+  lineas.push(`Técnico responsable: ${datosEquipo.tecnico || '—'}`)
   lineas.push('')
 
   for (const pos of POSICIONES) {
     const r = resultados[pos.id]
     lineas.push(`${EMOJI_SEMAFORO[r.semaforo.color]} *${pos.id} - ${pos.nombre}*`)
     if (r.modelo && r.diametro !== null) {
-      lineas.push(`Modelo: ${r.modelo.marca} ${r.modelo.modelo} (${r.modelo.tipo} ${r.modelo.medida})`)
+      lineas.push(`Modelo: ${r.modelo.marca} ${r.modelo.modelo} (${r.modelo.medida})`)
       lineas.push(`Diámetro medido: ${r.diametro} mm`)
       lineas.push(`Vida útil: ${r.pct.toFixed(1)}% - ${r.semaforo.label}`)
+      if (r.excedeNuevo) {
+        lineas.push('⚠️ Advertencia: la medida excede el diámetro de una llanta nueva. Verifica el modelo o la captura.')
+      }
     } else {
       lineas.push('Sin datos registrados')
     }
@@ -119,7 +125,7 @@ async function copiarAlPortapapeles(texto) {
   }
 }
 
-function generarPDF(mediciones, resultados, alertasEje) {
+function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
   const doc = new jsPDF()
   const fecha = formatFecha(new Date())
 
@@ -132,13 +138,19 @@ function generarPDF(mediciones, resultados, alertasEje) {
   doc.text('Montacargas · vida útil por posición', 14, 24)
   doc.text(`Fecha de generación: ${fecha}`, 14, 30)
 
+  doc.setFontSize(10)
+  doc.setTextColor(30, 41, 59)
+  doc.text(`Serie del equipo: ${datosEquipo.serie || '—'}`, 14, 38)
+  doc.text(`Sucursal: ${datosEquipo.sucursal || '—'}`, 14, 44)
+  doc.text(`Técnico responsable: ${datosEquipo.tecnico || '—'}`, 14, 50)
+
   const filas = POSICIONES.map((pos) => {
     const r = resultados[pos.id]
     if (r.modelo && r.diametro !== null) {
       return [
         pos.id,
-        `${r.modelo.marca} ${r.modelo.modelo}\n${r.modelo.tipo} ${r.modelo.medida}`,
-        `${r.diametro} mm`,
+        `${r.modelo.marca} ${r.modelo.modelo}\n${r.modelo.medida}`,
+        `${r.diametro} mm${r.excedeNuevo ? '\n⚠️ excede nuevo' : ''}`,
         `${r.pct.toFixed(1)}%`,
         r.semaforo.label,
         RECOMENDACIONES[r.semaforo.color],
@@ -148,7 +160,7 @@ function generarPDF(mediciones, resultados, alertasEje) {
   })
 
   autoTable(doc, {
-    startY: 36,
+    startY: 56,
     head: [['Pos.', 'Modelo', 'Diám. medido', 'Vida útil', 'Estado', 'Recomendación']],
     body: filas,
     styles: { fontSize: 9, cellPadding: 3, valign: 'middle' },
@@ -160,6 +172,13 @@ function generarPDF(mediciones, resultados, alertasEje) {
         const color = resultados[pos.id].semaforo.color
         data.cell.styles.textColor = COLOR_RGB_PDF[color]
         data.cell.styles.fontStyle = 'bold'
+      }
+      if (data.section === 'body' && data.column.index === 2) {
+        const pos = POSICIONES[data.row.index]
+        if (resultados[pos.id].excedeNuevo) {
+          data.cell.styles.textColor = COLOR_RGB_PDF.red
+          data.cell.styles.fontStyle = 'bold'
+        }
       }
     },
     didDrawCell: (data) => {
@@ -203,9 +222,14 @@ function generarPDF(mediciones, resultados, alertasEje) {
   doc.save(nombreArchivo)
 }
 
+function crearDatosEquipoVacios() {
+  return { serie: '', sucursal: '', tecnico: '' }
+}
+
 export default function App() {
   const [catalogo, setCatalogo] = useState([])
   const [estado, setEstado] = useState('cargando')
+  const [datosEquipo, setDatosEquipo] = useState(crearDatosEquipoVacios())
   const [mediciones, setMediciones] = useState({
     DI: crearMedicionVacia(),
     DD: crearMedicionVacia(),
@@ -233,6 +257,13 @@ export default function App() {
     }))
   }
 
+  const actualizarDatoEquipo = (campo, valor) => {
+    setDatosEquipo((prev) => ({ ...prev, [campo]: valor }))
+  }
+
+  const datosEquipoCompletos =
+    datosEquipo.serie.trim() !== '' && datosEquipo.sucursal.trim() !== '' && datosEquipo.tecnico.trim() !== ''
+
   const resultados = useMemo(() => {
     const map = {}
     for (const pos of POSICIONES) {
@@ -241,11 +272,13 @@ export default function App() {
       const diametro = parseFloat(m.diametroMedido)
       const tieneDatos = modelo && !Number.isNaN(diametro) && m.diametroMedido !== ''
       const pct = tieneDatos ? calcularVidaUtil(modelo, diametro) : null
+      const excedeNuevo = tieneDatos ? diametro > modelo.diametro_nuevo_mm : false
       map[pos.id] = {
         modelo,
         diametro: tieneDatos ? diametro : null,
         pct,
         semaforo: semaforo(pct),
+        excedeNuevo,
       }
     }
     return map
@@ -312,6 +345,8 @@ export default function App() {
       )}
 
       <main className="px-3 mt-4 space-y-4">
+        <DatosEquipo datos={datosEquipo} onChange={actualizarDatoEquipo} completos={datosEquipoCompletos} />
+
         {POSICIONES.map((pos) => (
           <TarjetaPosicion
             key={pos.id}
@@ -323,13 +358,60 @@ export default function App() {
           />
         ))}
 
-        <ResumenInspeccion mediciones={mediciones} resultados={resultados} alertasEje={alertasEje} />
+        <ResumenInspeccion
+          datosEquipo={datosEquipo}
+          datosEquipoCompletos={datosEquipoCompletos}
+          mediciones={mediciones}
+          resultados={resultados}
+          alertasEje={alertasEje}
+        />
       </main>
     </div>
   )
 }
 
-function ResumenInspeccion({ mediciones, resultados, alertasEje }) {
+function DatosEquipo({ datos, onChange, completos }) {
+  const campo = (name, label, placeholder) => {
+    const vacio = datos[name].trim() === ''
+    return (
+      <label className="block">
+        <span className="text-sm font-medium text-slate-600">
+          {label} <span className="text-red-500">*</span>
+        </span>
+        <input
+          type="text"
+          required
+          placeholder={placeholder}
+          value={datos[name]}
+          onChange={(e) => onChange(name, e.target.value)}
+          className={`mt-1 w-full rounded-xl border bg-white px-3 py-3 text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 ${
+            vacio ? 'border-red-300' : 'border-slate-300 focus:border-slate-500'
+          }`}
+        />
+      </label>
+    )
+  }
+
+  return (
+    <section className="rounded-2xl border-2 border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="px-4 py-3 bg-slate-800">
+        <h2 className="text-white font-semibold">Datos de Trazabilidad</h2>
+      </div>
+      <div className="px-4 py-4 space-y-3">
+        {campo('serie', 'Serie del Equipo', 'Ej. FL-2045')}
+        {campo('sucursal', 'Sucursal', 'Ej. Mérida')}
+        {campo('tecnico', 'Técnico Responsable', 'Ej. Juan Pérez')}
+        {!completos && (
+          <p className="text-xs font-medium text-red-600">
+            Completa los 3 campos para poder generar el reporte y garantizar la trazabilidad por unidad.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resultados, alertasEje }) {
   const [mensaje, setMensaje] = useState(null)
   const timeoutRef = useRef(null)
 
@@ -340,20 +422,21 @@ function ResumenInspeccion({ mediciones, resultados, alertasEje }) {
   }
 
   const handleCopiar = async () => {
-    const texto = generarTextoReporte(mediciones, resultados, alertasEje)
+    const texto = generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje)
     const ok = await copiarAlPortapapeles(texto)
     mostrarMensaje(ok ? '✅ Reporte copiado al portapapeles' : '⚠️ No se pudo copiar automáticamente')
   }
 
   const handleDescargarPDF = () => {
     try {
-      generarPDF(mediciones, resultados, alertasEje)
+      generarPDF(datosEquipo, mediciones, resultados, alertasEje)
     } catch {
       mostrarMensaje('⚠️ No se pudo generar el PDF')
     }
   }
 
   const hayDatos = POSICIONES.some((pos) => resultados[pos.id].pct !== null)
+  const puedeGenerar = hayDatos && datosEquipoCompletos
 
   return (
     <section className="rounded-2xl border-2 border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -388,11 +471,17 @@ function ResumenInspeccion({ mediciones, resultados, alertasEje }) {
         <p className="mx-4 mb-2 text-center text-sm font-medium text-slate-700">{mensaje}</p>
       )}
 
+      {!datosEquipoCompletos && (
+        <p className="mx-4 mb-2 text-center text-xs font-medium text-red-600">
+          ⚠️ Completa Serie del Equipo, Sucursal y Técnico Responsable para generar el reporte.
+        </p>
+      )}
+
       <div className="px-4 pb-4 pt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
           onClick={handleCopiar}
-          disabled={!hayDatos}
+          disabled={!puedeGenerar}
           className="w-full rounded-xl bg-green-600 disabled:bg-slate-300 disabled:cursor-not-allowed active:bg-green-700 text-white font-semibold py-3 text-sm shadow-sm transition-colors"
         >
           📋 Copiar Reporte para WhatsApp / Texto
@@ -400,7 +489,7 @@ function ResumenInspeccion({ mediciones, resultados, alertasEje }) {
         <button
           type="button"
           onClick={handleDescargarPDF}
-          disabled={!hayDatos}
+          disabled={!puedeGenerar}
           className="w-full rounded-xl bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed active:bg-slate-900 text-white font-semibold py-3 text-sm shadow-sm transition-colors"
         >
           ⬇️ Descargar Ficha Técnica PDF
@@ -434,12 +523,13 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
           <select
             value={medicion.modeloId}
             onChange={(e) => onChange('modeloId', e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            style={{ touchAction: 'manipulation' }}
+            className="mt-1 w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
           >
             <option value="">Seleccionar modelo…</option>
             {catalogo.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.marca} {c.modelo} — {c.tipo} {c.medida}
+                {c.marca} {c.modelo} — {c.medida}
               </option>
             ))}
           </select>
@@ -462,6 +552,15 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
           <p className="text-xs text-slate-500">
             Nuevo: {resultado.modelo.diametro_nuevo_mm} mm · Límite: {resultado.modelo.diametro_limite_mm} mm
           </p>
+        )}
+
+        {resultado.excedeNuevo && (
+          <div className="flex items-start gap-2 rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2 text-red-800">
+            <span className="text-lg leading-none">⚠️</span>
+            <p className="text-xs font-medium">
+              Advertencia: La medida excede el diámetro de una llanta nueva. Verifica el modelo o la captura.
+            </p>
+          </div>
         )}
 
         <div className="pt-1">
