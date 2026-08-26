@@ -2,6 +2,13 @@ import { JWT } from 'google-auth-library'
 
 const RANGO_HOJA = 'Mediciones!A:L'
 
+function obtenerClavePrivada() {
+  if (process.env.GOOGLE_PRIVATE_KEY_B64) {
+    return Buffer.from(process.env.GOOGLE_PRIVATE_KEY_B64, 'base64').toString('utf8')
+  }
+  return process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Metodo no permitido' })
@@ -15,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
-  const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  const key = obtenerClavePrivada()
   const sheetId = process.env.GOOGLE_SHEET_ID
 
   if (!email || !key || !sheetId) {
