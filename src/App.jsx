@@ -141,6 +141,38 @@ function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
   return lineas.join('\n')
 }
 
+function construirFilasRegistro(datosEquipo, resultados) {
+  const idInspeccion = crypto.randomUUID()
+  const fecha = formatFecha(new Date())
+  return POSICIONES.map((pos) => {
+    const r = resultados[pos.id]
+    return [
+      idInspeccion,
+      fecha,
+      datosEquipo.serie,
+      datosEquipo.sucursal,
+      datosEquipo.tecnico,
+      pos.id,
+      r.modelo ? `${r.modelo.marca} ${r.modelo.modelo}` : '',
+      r.modelo ? r.modelo.medida : '',
+      r.diametro ?? '',
+      r.pct !== null ? r.pct.toFixed(1) : '',
+      r.semaforo.label,
+      r.excedeNuevo ? 'SI' : 'NO',
+    ]
+  })
+}
+
+async function registrarEnHojaDeCalculo(datosEquipo, resultados) {
+  const filas = construirFilasRegistro(datosEquipo, resultados)
+  const respuesta = await fetch('/api/registro', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filas }),
+  })
+  if (!respuesta.ok) throw new Error('No se pudo registrar en la hoja de calculo')
+}
+
 async function copiarAlPortapapeles(texto) {
   if (navigator.clipboard && window.isSecureContext) {
     try {
@@ -486,6 +518,7 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
   const [mensaje, setMensaje] = useState(null)
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const timeoutRef = useRef(null)
+  const registroEnviadoRef = useRef(null)
 
   const mostrarMensaje = (texto) => {
     setMensaje(texto)
@@ -493,10 +526,22 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
     timeoutRef.current = setTimeout(() => setMensaje(null), 3000)
   }
 
+  const registrarSiHaceFalta = async () => {
+    const clave = JSON.stringify({ datosEquipo, mediciones })
+    if (registroEnviadoRef.current === clave) return
+    try {
+      await registrarEnHojaDeCalculo(datosEquipo, resultados)
+      registroEnviadoRef.current = clave
+    } catch {
+      // No se bloquea la generacion del reporte/PDF si falla el registro remoto
+    }
+  }
+
   const handleCopiar = async () => {
     const texto = generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje)
     const ok = await copiarAlPortapapeles(texto)
     mostrarMensaje(ok ? '✅ Reporte copiado al portapapeles' : '⚠️ No se pudo copiar automáticamente')
+    registrarSiHaceFalta()
   }
 
   const handleDescargarPDF = async () => {
@@ -504,6 +549,7 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
     setGenerandoPDF(true)
     try {
       await generarPDF(datosEquipo, mediciones, resultados, alertasEje)
+      registrarSiHaceFalta()
     } catch {
       mostrarMensaje('⚠️ No se pudo generar el PDF')
     } finally {
