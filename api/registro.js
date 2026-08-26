@@ -30,13 +30,12 @@ export default async function handler(req, res) {
       key,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     })
-    const client = await auth.getClient()
 
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(
       RANGO_HOJA,
     )}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
 
-    await client.request({
+    await auth.request({
       url,
       method: 'POST',
       data: { values: filas },
