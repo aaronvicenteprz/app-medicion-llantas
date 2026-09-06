@@ -141,6 +141,12 @@ function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
     lineas.push('Sin alertas de desbalance entre ejes.')
   }
 
+  if (datosEquipo.observaciones.trim() !== '') {
+    lineas.push('')
+    lineas.push('📝 *Observaciones*')
+    lineas.push(datosEquipo.observaciones.trim())
+  }
+
   return lineas.join('\n')
 }
 
@@ -163,6 +169,7 @@ function construirFilasRegistro(datosEquipo, mediciones, resultados) {
       r.semaforo.label,
       r.excedeNuevo ? 'SI' : 'NO',
       mediciones[pos.id].danoCliente ? 'SI' : 'NO',
+      datosEquipo.observaciones,
     ]
   })
 }
@@ -322,6 +329,19 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
     y += 5
   }
 
+  if (datosEquipo.observaciones.trim() !== '') {
+    y += 5
+    doc.setFontSize(11)
+    doc.setTextColor(...MARCA_RGB.navy)
+    doc.text('Observaciones', 14, y)
+    y += 6
+    doc.setFontSize(9)
+    doc.setTextColor(...MARCA_RGB.gris)
+    const lineasObservaciones = doc.splitTextToSize(datosEquipo.observaciones.trim(), margenDerecho - 14)
+    doc.text(lineasObservaciones, 14, y)
+    y += lineasObservaciones.length * 5
+  }
+
   doc.setDrawColor(...MARCA_RGB.navy)
   doc.setLineWidth(0.3)
   doc.line(14, 281, margenDerecho, 281)
@@ -334,7 +354,7 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
 }
 
 function crearDatosEquipoVacios() {
-  return { serie: '', sucursal: '', tecnico: '' }
+  return { serie: '', sucursal: '', tecnico: '', observaciones: '' }
 }
 
 const LLANTA_LUGS = 28
@@ -574,6 +594,16 @@ function DatosEquipo({ datos, onChange, completos }) {
             Completa los 3 campos para poder generar el reporte y garantizar la trazabilidad por unidad.
           </p>
         )}
+        <label className="block">
+          <span className="text-sm font-medium text-slate-600">Observaciones</span>
+          <textarea
+            rows={3}
+            placeholder="Notas adicionales sobre el equipo o la inspección…"
+            value={datos.observaciones}
+            onChange={(e) => onChange('observaciones', e.target.value)}
+            className="mt-1 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-800 focus:border-dmi-blue focus:outline-none focus:ring-2 focus:ring-dmi-blue"
+          />
+        </label>
       </div>
     </section>
   )
