@@ -1,6 +1,6 @@
 import { JWT } from 'google-auth-library'
 
-const RANGO_HOJA = 'Mediciones!A:L'
+const RANGO_HOJA = 'Mediciones!A:M'
 
 function obtenerClavePrivada() {
   if (process.env.GOOGLE_PRIVATE_KEY_B64) {
