@@ -34,7 +34,30 @@ const SEMAFORO_ESTILOS = {
 }
 
 function crearMedicionVacia() {
-  return { modeloId: '', diametroMedido: '', danoCliente: false }
+  return { modeloId: '', diametroMedido: '', danoCliente: false, imagen: null }
+}
+
+function redimensionarImagen(file, maxAncho = 1000, calidad = 0.82) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader()
+    lector.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const escala = Math.min(1, maxAncho / img.naturalWidth)
+        const ancho = Math.round(img.naturalWidth * escala)
+        const alto = Math.round(img.naturalHeight * escala)
+        const canvas = document.createElement('canvas')
+        canvas.width = ancho
+        canvas.height = alto
+        canvas.getContext('2d').drawImage(img, 0, 0, ancho, alto)
+        resolve(canvas.toDataURL('image/jpeg', calidad))
+      }
+      img.onerror = reject
+      img.src = lector.result
+    }
+    lector.onerror = reject
+    lector.readAsDataURL(file)
+  })
 }
 
 const EMOJI_SEMAFORO = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚪' }
@@ -128,6 +151,9 @@ function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
       }
     } else {
       lineas.push('Sin datos registrados')
+    }
+    if (mediciones[pos.id].imagen) {
+      lineas.push('📷 Fotografía adjunta en la ficha PDF')
     }
     lineas.push('')
   }
@@ -340,6 +366,31 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
     const lineasObservaciones = doc.splitTextToSize(datosEquipo.observaciones.trim(), margenDerecho - 14)
     doc.text(lineasObservaciones, 14, y)
     y += lineasObservaciones.length * 5
+  }
+
+  const fotosDisponibles = POSICIONES.filter((pos) => mediciones[pos.id].imagen)
+  if (fotosDisponibles.length > 0) {
+    doc.addPage()
+    doc.setFontSize(14)
+    doc.setTextColor(...MARCA_RGB.navy)
+    doc.text('Fotografías de las Llantas', 14, 18)
+    doc.setDrawColor(...MARCA_RGB.teal)
+    doc.setLineWidth(1.2)
+    doc.line(14, 21, 44, 21)
+
+    const anchoFoto = 85
+    const altoFoto = 60
+    const columnas = 2
+    fotosDisponibles.forEach((pos, i) => {
+      const col = i % columnas
+      const fila = Math.floor(i / columnas)
+      const x = 14 + col * (anchoFoto + 10)
+      const yFoto = 34 + fila * (altoFoto + 14)
+      doc.setFontSize(10)
+      doc.setTextColor(...MARCA_RGB.navy)
+      doc.text(`${pos.id} - ${pos.nombre}`, x, yFoto - 3)
+      doc.addImage(mediciones[pos.id].imagen, 'JPEG', x, yFoto, anchoFoto, altoFoto)
+    })
   }
 
   doc.setDrawColor(...MARCA_RGB.navy)
@@ -719,6 +770,18 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
 function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) {
   const estilo = SEMAFORO_ESTILOS[resultado.semaforo.color]
 
+  const handleImagenChange = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const dataUrl = await redimensionarImagen(file)
+      onChange('imagen', dataUrl)
+    } catch {
+      // si falla la lectura de la imagen, simplemente no se actualiza
+    }
+  }
+
   return (
     <section className={`rounded-2xl border-2 ${estilo.border} ${estilo.bgSoft} shadow-sm overflow-hidden`}>
       <div className="flex items-center justify-between px-4 py-3 bg-white/60">
@@ -780,6 +843,31 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
           />
           <span className="text-sm font-medium text-slate-600">Desgaste por daño del cliente</span>
         </label>
+
+        <div>
+          <span className="text-sm font-medium text-slate-600">Fotografía de la llanta</span>
+          {medicion.imagen ? (
+            <div className="relative mt-1">
+              <img
+                src={medicion.imagen}
+                alt={`Foto ${posicion.nombre}`}
+                className="h-40 w-full rounded-xl border border-slate-300 object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => onChange('imagen', null)}
+                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <label className="mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white px-3 py-6 text-sm font-medium text-slate-500 hover:border-dmi-blue">
+              📷 Agregar foto
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImagenChange} />
+            </label>
+          )}
+        </div>
 
         {resultado.excedeNuevo && (
           <div className="flex items-start gap-2 rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2 text-red-800">
