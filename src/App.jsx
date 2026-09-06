@@ -27,14 +27,14 @@ function semaforo(pct) {
 }
 
 const SEMAFORO_ESTILOS = {
-  green: { bg: 'bg-green-500', ring: 'ring-green-500', text: 'text-green-700', bgSoft: 'bg-green-50', border: 'border-green-300' },
-  yellow: { bg: 'bg-yellow-400', ring: 'ring-yellow-400', text: 'text-yellow-700', bgSoft: 'bg-yellow-50', border: 'border-yellow-300' },
-  red: { bg: 'bg-red-500', ring: 'ring-red-500', text: 'text-red-700', bgSoft: 'bg-red-50', border: 'border-red-300' },
-  gray: { bg: 'bg-gray-300', ring: 'ring-gray-300', text: 'text-gray-500', bgSoft: 'bg-gray-50', border: 'border-gray-200' },
+  green: { bg: 'bg-green-500', ring: 'ring-green-500', text: 'text-green-700', bgSoft: 'bg-green-50', border: 'border-green-300', icon: 'text-green-500' },
+  yellow: { bg: 'bg-yellow-400', ring: 'ring-yellow-400', text: 'text-yellow-700', bgSoft: 'bg-yellow-50', border: 'border-yellow-300', icon: 'text-yellow-400' },
+  red: { bg: 'bg-red-500', ring: 'ring-red-500', text: 'text-red-700', bgSoft: 'bg-red-50', border: 'border-red-300', icon: 'text-red-500' },
+  gray: { bg: 'bg-gray-300', ring: 'ring-gray-300', text: 'text-gray-500', bgSoft: 'bg-gray-50', border: 'border-gray-200', icon: 'text-gray-300' },
 }
 
 function crearMedicionVacia() {
-  return { modeloId: '', diametroMedido: '' }
+  return { modeloId: '', diametroMedido: '', danoCliente: false }
 }
 
 const EMOJI_SEMAFORO = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚪' }
@@ -123,6 +123,9 @@ function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
       if (r.excedeNuevo) {
         lineas.push('⚠️ Advertencia: la medida excede el diámetro de una llanta nueva. Verifica el modelo o la captura.')
       }
+      if (mediciones[pos.id].danoCliente) {
+        lineas.push('🛑 Desgaste atribuido a daño del cliente')
+      }
     } else {
       lineas.push('Sin datos registrados')
     }
@@ -141,7 +144,7 @@ function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
   return lineas.join('\n')
 }
 
-function construirFilasRegistro(datosEquipo, resultados) {
+function construirFilasRegistro(datosEquipo, mediciones, resultados) {
   const idInspeccion = crypto.randomUUID()
   const fecha = formatFecha(new Date())
   return POSICIONES.map((pos) => {
@@ -159,12 +162,13 @@ function construirFilasRegistro(datosEquipo, resultados) {
       r.pct !== null ? r.pct.toFixed(1) : '',
       r.semaforo.label,
       r.excedeNuevo ? 'SI' : 'NO',
+      mediciones[pos.id].danoCliente ? 'SI' : 'NO',
     ]
   })
 }
 
-async function registrarEnHojaDeCalculo(datosEquipo, resultados) {
-  const filas = construirFilasRegistro(datosEquipo, resultados)
+async function registrarEnHojaDeCalculo(datosEquipo, mediciones, resultados) {
+  const filas = construirFilasRegistro(datosEquipo, mediciones, resultados)
   const respuesta = await fetch('/api/registro', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -237,6 +241,7 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
 
   const filas = POSICIONES.map((pos) => {
     const r = resultados[pos.id]
+    const danoCliente = mediciones[pos.id].danoCliente ? 'SI' : 'NO'
     if (r.modelo && r.diametro !== null) {
       return [
         pos.id,
@@ -245,20 +250,22 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
         `${r.pct.toFixed(1)}%`,
         r.semaforo.label,
         RECOMENDACIONES[r.semaforo.color],
+        danoCliente,
       ]
     }
-    return [pos.id, 'Sin datos', '-', '-', 'Sin datos', RECOMENDACIONES.gray]
+    return [pos.id, 'Sin datos', '-', '-', 'Sin datos', RECOMENDACIONES.gray, danoCliente]
   })
 
   autoTable(doc, {
     startY: 58,
-    head: [['Pos.', 'Modelo', 'Diám. medido', 'Vida útil', 'Estado', 'Recomendación']],
+    head: [['Pos.', 'Modelo', 'Diám. medido', 'Vida útil', 'Estado', 'Recomendación', 'Daño cliente']],
     body: filas,
     styles: { fontSize: 9, cellPadding: 3, valign: 'middle' },
     headStyles: { fillColor: MARCA_RGB.navy, textColor: 255 },
     columnStyles: {
       0: { cellWidth: 12 },
       4: { cellWidth: 22, cellPadding: { top: 3, right: 3, bottom: 3, left: 9 } },
+      6: { cellWidth: 20, halign: 'center' },
     },
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 4) {
@@ -270,6 +277,13 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
       if (data.section === 'body' && data.column.index === 2) {
         const pos = POSICIONES[data.row.index]
         if (resultados[pos.id].excedeNuevo) {
+          data.cell.styles.textColor = COLOR_RGB_PDF.red
+          data.cell.styles.fontStyle = 'bold'
+        }
+      }
+      if (data.section === 'body' && data.column.index === 6) {
+        const pos = POSICIONES[data.row.index]
+        if (mediciones[pos.id].danoCliente) {
           data.cell.styles.textColor = COLOR_RGB_PDF.red
           data.cell.styles.fontStyle = 'bold'
         }
@@ -321,6 +335,57 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
 
 function crearDatosEquipoVacios() {
   return { serie: '', sucursal: '', tecnico: '' }
+}
+
+const LLANTA_LUGS = 28
+const LLANTA_CX = 100
+const LLANTA_CY = 100
+const LLANTA_OUTER_R = 92
+const LLANTA_NOTCH_R = 84
+const LLANTA_TREAD_R = 74
+const LLANTA_SIDEWALL_OUTER_R = 66
+const LLANTA_SIDEWALL_INNER_R = 55
+const LLANTA_HUB_R = 48
+const LLANTA_HUB_HOLE_R = 40
+
+function construirLugPath(angleDeg) {
+  const halfOuter = 7
+  const halfInner = 4.5
+  const puntosLocales = [
+    [-halfOuter, -LLANTA_OUTER_R],
+    [-halfOuter * 0.35, -LLANTA_NOTCH_R],
+    [halfOuter * 0.35, -LLANTA_NOTCH_R],
+    [halfOuter, -LLANTA_OUTER_R],
+    [halfInner, -LLANTA_TREAD_R],
+    [-halfInner, -LLANTA_TREAD_R],
+  ]
+  const rad = (angleDeg * Math.PI) / 180
+  const sin = Math.sin(rad)
+  const cos = Math.cos(rad)
+  const puntos = puntosLocales.map(([x, y]) => [
+    LLANTA_CX + x * cos - y * sin,
+    LLANTA_CY + x * sin + y * cos,
+  ])
+  return `M ${puntos.map((p) => p.join(',')).join(' L ')} Z`
+}
+
+const LLANTA_LUG_PATHS = Array.from({ length: LLANTA_LUGS }, (_, i) =>
+  construirLugPath((360 / LLANTA_LUGS) * i),
+)
+
+function LlantaIcon({ className }) {
+  return (
+    <svg viewBox="0 0 200 200" className={className} fill="none" stroke="currentColor">
+      <circle cx={LLANTA_CX} cy={LLANTA_CY} r={LLANTA_TREAD_R} strokeWidth="2" />
+      {LLANTA_LUG_PATHS.map((d, i) => (
+        <path key={i} d={d} fill="currentColor" stroke="none" />
+      ))}
+      <circle cx={LLANTA_CX} cy={LLANTA_CY} r={LLANTA_SIDEWALL_OUTER_R} strokeWidth="1.5" />
+      <circle cx={LLANTA_CX} cy={LLANTA_CY} r={LLANTA_SIDEWALL_INNER_R} strokeWidth="1.5" />
+      <circle cx={LLANTA_CX} cy={LLANTA_CY} r={LLANTA_HUB_R} strokeWidth="1.5" />
+      <circle cx={LLANTA_CX} cy={LLANTA_CY} r={LLANTA_HUB_HOLE_R} strokeWidth="2" />
+    </svg>
+  )
 }
 
 export default function App() {
@@ -530,7 +595,7 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
     const clave = JSON.stringify({ datosEquipo, mediciones })
     if (registroEnviadoRef.current === clave) return
     try {
-      await registrarEnHojaDeCalculo(datosEquipo, resultados)
+      await registrarEnHojaDeCalculo(datosEquipo, mediciones, resultados)
       registroEnviadoRef.current = clave
     } catch {
       // No se bloquea la generacion del reporte/PDF si falla el registro remoto
@@ -636,7 +701,7 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
             <p className="text-xs text-slate-500 capitalize">{posicion.eje}</p>
           </div>
         </div>
-        <span className={`h-6 w-6 rounded-full ${estilo.bg} ring-4 ${estilo.ring}/30 shrink-0`} />
+        <LlantaIcon className={`h-11 w-11 shrink-0 transition-colors duration-300 ${estilo.icon}`} />
       </div>
 
       <div className="px-4 py-4 space-y-3">
@@ -675,6 +740,16 @@ function TarjetaPosicion({ posicion, catalogo, medicion, resultado, onChange }) 
             Nuevo: {resultado.modelo.diametro_nuevo_mm} mm · Límite: {resultado.modelo.diametro_limite_mm} mm
           </p>
         )}
+
+        <label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-3">
+          <input
+            type="checkbox"
+            checked={medicion.danoCliente}
+            onChange={(e) => onChange('danoCliente', e.target.checked)}
+            className="h-5 w-5 shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500"
+          />
+          <span className="text-sm font-medium text-slate-600">Desgaste por daño del cliente</span>
+        </label>
 
         {resultado.excedeNuevo && (
           <div className="flex items-start gap-2 rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2 text-red-800">
