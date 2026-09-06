@@ -88,9 +88,9 @@ function obtenerLogoBase64() {
   return logoBase64Promise
 }
 
-function formatSucursal(sucursal) {
-  const valor = sucursal?.trim()
-  return valor ? `DMI Sucursal ${valor}` : '—'
+function formatCliente(cliente) {
+  const valor = cliente?.trim()
+  return valor || '—'
 }
 
 function formatFecha(fecha) {
@@ -109,7 +109,7 @@ function generarTextoReporte(datosEquipo, mediciones, resultados, alertasEje) {
   lineas.push('*Reporte de Inspección de Llantas*')
   lineas.push(`Fecha: ${formatFecha(new Date())}`)
   lineas.push(`Serie del equipo: ${datosEquipo.serie || '—'}`)
-  lineas.push(`Sucursal: ${formatSucursal(datosEquipo.sucursal)}`)
+  lineas.push(`Cliente: ${formatCliente(datosEquipo.cliente)}`)
   lineas.push(`Técnico responsable: ${datosEquipo.tecnico || '—'}`)
   lineas.push('')
 
@@ -159,7 +159,7 @@ function construirFilasRegistro(datosEquipo, mediciones, resultados) {
       idInspeccion,
       fecha,
       datosEquipo.serie,
-      datosEquipo.sucursal,
+      datosEquipo.cliente,
       datosEquipo.tecnico,
       pos.id,
       r.modelo ? `${r.modelo.marca} ${r.modelo.modelo}` : '',
@@ -243,7 +243,7 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
   doc.setFontSize(10)
   doc.setTextColor(...MARCA_RGB.navy)
   doc.text(`Serie del equipo: ${datosEquipo.serie || '—'}`, 14, 39)
-  doc.text(`Sucursal: ${formatSucursal(datosEquipo.sucursal)}`, 14, 45)
+  doc.text(`Cliente: ${formatCliente(datosEquipo.cliente)}`, 14, 45)
   doc.text(`Técnico responsable: ${datosEquipo.tecnico || '—'}`, 14, 51)
 
   const filas = POSICIONES.map((pos) => {
@@ -354,7 +354,7 @@ async function generarPDF(datosEquipo, mediciones, resultados, alertasEje) {
 }
 
 function crearDatosEquipoVacios() {
-  return { serie: '', sucursal: '', tecnico: '', observaciones: '' }
+  return { serie: '', cliente: '', tecnico: '', observaciones: '' }
 }
 
 const LLANTA_LUGS = 28
@@ -445,7 +445,7 @@ export default function App() {
   }
 
   const datosEquipoCompletos =
-    datosEquipo.serie.trim() !== '' && datosEquipo.sucursal.trim() !== '' && datosEquipo.tecnico.trim() !== ''
+    datosEquipo.serie.trim() !== '' && datosEquipo.cliente.trim() !== '' && datosEquipo.tecnico.trim() !== ''
 
   const resultados = useMemo(() => {
     const map = {}
@@ -587,7 +587,7 @@ function DatosEquipo({ datos, onChange, completos }) {
       </div>
       <div className="px-4 py-4 space-y-3">
         {campo('serie', 'Serie del Equipo', 'Ej. FL-2045')}
-        {campo('sucursal', 'Sucursal', 'Ej. Mérida')}
+        {campo('cliente', 'Cliente', 'Ej. Nombre del cliente')}
         {campo('tecnico', 'Técnico Responsable', 'Ej. Juan Pérez')}
         {!completos && (
           <p className="text-xs font-medium text-red-600">
@@ -690,7 +690,7 @@ function ResumenInspeccion({ datosEquipo, datosEquipoCompletos, mediciones, resu
 
       {!datosEquipoCompletos && (
         <p className="mx-4 mb-2 text-center text-xs font-medium text-red-600">
-          ⚠️ Completa Serie del Equipo, Sucursal y Técnico Responsable para generar el reporte.
+          ⚠️ Completa Serie del Equipo, Cliente y Técnico Responsable para generar el reporte.
         </p>
       )}
 
